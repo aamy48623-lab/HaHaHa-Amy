@@ -60,7 +60,7 @@ placeholder = st.empty()
 controls = st.empty()
 
 # Buttons: Start round, Draw (disabled until signal), Reset match
-colA, colB, colC = controls.beta_columns(3)
+colA, colB, colC = controls.columns(3)
 start_btn = colA.button("Start round")
 # 'Draw' button: we need to capture presses even when disabled; we'll show text instead when not callable
 draw_btn = colB.button("Draw")
