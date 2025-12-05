@@ -80,7 +80,7 @@ if start_btn and st.session_state.phase == 'idle':
     # choose random delay before signal
     st.session_state._signal_delay = random.uniform(prep_min, prep_max)
     st.session_state._prep_start = now_ms()
-    st.experimental_rerun()
+    st.rerun()
 
 # Player pressing draw
 if draw_btn:
@@ -93,7 +93,7 @@ if draw_btn:
         st.session_state.score_cpu += 1
         st.session_state.round += 1
         reset_round(st.session_state)
-        st.experimental_rerun()
+        st.rerun()
     else:
         # valid draw — record reaction time
         st.session_state.draw_time_player = now_ms()
@@ -118,7 +118,7 @@ if draw_btn:
             st.session_state.score_cpu += 1
         st.session_state.round += 1
         reset_round(st.session_state)
-        st.experimental_rerun()
+        st.rerun()
 
 # --- Main animation / game loop logic (driven by reruns) -----------------
 with placeholder.container():
@@ -134,13 +134,13 @@ with placeholder.container():
             st.write(f"Signal in ~{remaining:.2f} seconds")
             # wait a small step then rerun to update countdown
             time.sleep(0.05)
-            st.experimental_rerun()
+            st.rerun()
         else:
             # signal now
             st.session_state.phase = 'ready'
             st.session_state.can_draw = True
             st.session_state.signal_time = now_ms()
-            st.experimental_rerun()
+            st.rerun()
     elif st.session_state.phase == 'ready':
         st.markdown("<h1 style='color: red;'>DRAW!</h1>", unsafe_allow_html=True)
         st.write("Click **Draw** now!")
@@ -159,7 +159,7 @@ with placeholder.container():
                 st.session_state.score_cpu += 1
                 st.session_state.round += 1
                 reset_round(st.session_state)
-                st.experimental_rerun()
+                st.rerun()
     elif st.session_state.phase == 'drawn':
         st.write("Round resolved — showing results...")
     elif st.session_state.phase == 'result':
