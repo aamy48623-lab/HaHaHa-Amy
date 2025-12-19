@@ -1,134 +1,135 @@
 import streamlit as st
 
 st.set_page_config(layout="wide")
-st.title("⛳ 高階高爾夫遊戲")
 
-html_code = """
-<canvas id="golfCanvas" width="800" height="600" style="border:1px solid #000000; touch-action: none;"></canvas>
-<p id="score"></p>
-<p id="level"></p>
+html = """
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+    margin: 0;
+    background: #2e7d32;
+}
+canvas {
+    display: block;
+    margin: auto;
+    background: linear-gradient(#4caf50, #2e7d32);
+    touch-action: none;
+}
+</style>
+</head>
+<body>
+
+<canvas id="game" width="900" height="500"></canvas>
 
 <script>
-const canvas = document.getElementById("golfCanvas");
+const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-// Game variables
-let levels = [
-    {ball:{x:100,y:550}, hole:{x:700,y:100}, obstacles:[
-        {x:300,y:400,w:100,h:20,type:'sand'},
-        {x:500,y:250,w:80,h:20,type:'water'}
-    ]},
-    {ball:{x:50,y:550}, hole:{x:750,y:150}, obstacles:[
-        {x:200,y:450,w:120,h:20,type:'sand'},
-        {x:400,y:300,w:80,h:20,type:'water'},
-        {x:600,y:200,w:100,h:20,type:'sand'}
-    ]}
-];
-let currentLevel = 0;
+let level = 1;
+let strokes = 0;
 
-let ball = {...levels[currentLevel].ball, radius:12};
-let hole = {...levels[currentLevel].hole, radius:18};
-let obstacles = levels[currentLevel].obstacles;
+let ball = { x: 120, y: 250, vx: 0, vy: 0, r: 10 };
+let hole = { x: 760, y: 250, r: 16 };
 
-let velocity = {x:0, y:0};
-let moving = false;
-let shots = 0;
+let dragging = false;
+let dragStart = {};
+let dragEnd = {};
 
-// Draw function
+function resetLevel() {
+    ball.x = 120;
+    ball.y = 250;
+    ball.vx = 0;
+    ball.vy = 0;
+    strokes = 0;
+
+    hole.x = 700 + level * 20;
+    hole.y = 150 + level * 40;
+}
+
+canvas.addEventListener("pointerdown", e => {
+    dragging = true;
+    dragStart = { x: e.offsetX, y: e.offsetY };
+});
+
+canvas.addEventListener("pointermove", e => {
+    if (dragging) {
+        dragEnd = { x: e.offsetX, y: e.offsetY };
+    }
+});
+
+canvas.addEventListener("pointerup", e => {
+    dragging = false;
+    let dx = dragStart.x - dragEnd.x;
+    let dy = dragStart.y - dragEnd.y;
+    ball.vx = dx * 0.18;
+    ball.vy = dy * 0.18;
+    strokes++;
+});
+
+function update() {
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    ball.vx *= 0.985;
+    ball.vy *= 0.985;
+
+    if (ball.x < ball.r || ball.x > canvas.width - ball.r) ball.vx *= -1;
+    if (ball.y < ball.r || ball.y > canvas.height - ball.r) ball.vy *= -1;
+
+    let dx = ball.x - hole.x;
+    let dy = ball.y - hole.y;
+    if (Math.sqrt(dx*dx + dy*dy) < hole.r) {
+        level++;
+        resetLevel();
+    }
+}
+
+function drawArrow() {
+    if (!dragging) return;
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(ball.x, ball.y);
+    ctx.lineTo(dragEnd.x, dragEnd.y);
+    ctx.stroke();
+}
+
 function draw() {
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    // Green background
-    ctx.fillStyle = "#3cba54";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-
-    // Obstacles
-    for(let obs of obstacles){
-        ctx.fillStyle = obs.type==='sand'?'#f4d27c':'#4fc3f7';
-        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
-    }
 
     // Hole
-    ctx.fillStyle = "black";
     ctx.beginPath();
-    ctx.arc(hole.x, hole.y, hole.radius, 0, 2*Math.PI);
+    ctx.arc(hole.x, hole.y, hole.r, 0, Math.PI*2);
+    ctx.fillStyle = "black";
     ctx.fill();
 
     // Ball
-    ctx.fillStyle = "white";
     ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.radius, 0, 2*Math.PI);
+    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+    ctx.fillStyle = "white";
     ctx.fill();
+
+    drawArrow();
+
+    ctx.fillStyle = "white";
+    ctx.font = "20px Arial";
+    ctx.fillText("Level: " + level, 20, 30);
+    ctx.fillText("Strokes: " + strokes, 20, 60);
 }
 
-// Physics update
-function update() {
-    if(moving){
-        ball.x += velocity.x;
-        ball.y += velocity.y;
-        velocity.x *= 0.95;
-        velocity.y *= 0.95;
-        if(Math.abs(velocity.x)<0.5 && Math.abs(velocity.y)<0.5){
-            velocity.x = 0;
-            velocity.y = 0;
-            moving = false;
-        }
-
-        // Collision with obstacles
-        for(let obs of obstacles){
-            if(ball.x+ball.radius > obs.x && ball.x-ball.radius < obs.x+obs.w &&
-               ball.y+ball.radius > obs.y && ball.y-ball.radius < obs.y+obs.h){
-                // Simple bounce
-                velocity.x = -velocity.x*0.5;
-                velocity.y = -velocity.y*0.5;
-            }
-        }
-    }
-    // Check hole
-    let dx = ball.x - hole.x;
-    let dy = ball.y - hole.y;
-    let dist = Math.sqrt(dx*dx + dy*dy);
-    if(dist < ball.radius + hole.radius){
-        alert("Hole completed in " + shots + " shots!");
-        currentLevel++;
-        if(currentLevel >= levels.length){
-            alert("所有關卡完成! 總共擊球次數: " + shots);
-            currentLevel = 0;
-        }
-        // Load next level
-        ball = {...levels[currentLevel].ball, radius:12};
-        hole = {...levels[currentLevel].hole, radius:18};
-        obstacles = levels[currentLevel].obstacles;
-        shots = 0;
-        moving = false;
-    }
-    document.getElementById("score").innerText = "Shots: " + shots;
-    document.getElementById("level").innerText = "Level: " + (currentLevel+1);
+function loop() {
+    update();
     draw();
-    requestAnimationFrame(update);
+    requestAnimationFrame(loop);
 }
 
-// Drag controls
-let dragStart = null;
-canvas.addEventListener("pointerdown", (e)=>{
-    if(!moving){
-        dragStart = {x:e.offsetX, y:e.offsetY};
-    }
-});
-canvas.addEventListener("pointerup", (e)=>{
-    if(dragStart && !moving){
-        let dx = dragStart.x - e.offsetX;
-        let dy = dragStart.y - e.offsetY;
-        velocity.x = dx/5;
-        velocity.y = dy/5;
-        moving = true;
-        shots += 1;
-        dragStart = null;
-    }
-});
-
-draw();
-update();
+resetLevel();
+loop();
 </script>
+</body>
+</html>
 """
 
-st.components.v1.html(html_code, height=700)
+st.components.v1.html(html, height=520)
