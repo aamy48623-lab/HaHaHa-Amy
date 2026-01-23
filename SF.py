@@ -1,88 +1,78 @@
 import streamlit as st
-from PIL import Image, ImageDraw
+import streamlit.components.v1 as components
 
-# --- Game setup ---
-WIDTH, HEIGHT = 400, 400
-PLAYER_SIZE = 30
-FRAGMENT_SIZE = 20
+st.title("影子碎片 (Shadow Fragments) - Real-time Prototype")
 
-# Initialize session state
-if 'player_x' not in st.session_state:
-    st.session_state.player_x = WIDTH // 2
-if 'player_y' not in st.session_state:
-    st.session_state.player_y = HEIGHT // 2
-if 'is_light' not in st.session_state:
-    st.session_state.is_light = True
-if 'collected' not in st.session_state:
-    st.session_state.collected = []
-if 'fragment_pos' not in st.session_state:
-    st.session_state.fragment_pos = [(50,50), (350,350), (200,200)]
+# HTML + JS game
+game_html = """
+<canvas id="gameCanvas" width="400" height="400" style="border:1px solid #000000;"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
-# --- Functions ---
-def move(dx, dy):
-    st.session_state.player_x = max(0, min(WIDTH - PLAYER_SIZE, st.session_state.player_x + dx))
-    st.session_state.player_y = max(0, min(HEIGHT - PLAYER_SIZE, st.session_state.player_y + dy))
-    check_collision()
+let player = {x: 200, y: 200, size: 30};
+let isLight = true;
+let fragments = [{x:50,y:50},{x:350,y:350},{x:200,y:200}];
+let collected = [];
 
-def toggle_light():
-    st.session_state.is_light = not st.session_state.is_light
+function draw() {
+    // Background
+    ctx.fillStyle = isLight ? 'white' : 'black';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-def check_collision():
-    for idx, (fx, fy) in enumerate(st.session_state.fragment_pos):
-        if idx not in st.session_state.collected:
-            if (st.session_state.player_x < fx + FRAGMENT_SIZE and
-                st.session_state.player_x + PLAYER_SIZE > fx and
-                st.session_state.player_y < fy + FRAGMENT_SIZE and
-                st.session_state.player_y + PLAYER_SIZE > fy):
-                st.session_state.collected.append(idx)
+    // Draw fragments
+    ctx.fillStyle = 'cyan';
+    for(let i=0;i<fragments.length;i++){
+        if(!collected.includes(i)){
+            ctx.fillRect(fragments[i].x, fragments[i].y, 20, 20);
+        }
+    }
 
-def draw_game():
-    # Create background
-    bg_color = (255,255,255) if st.session_state.is_light else (0,0,0)
-    player_color = (255,255,100) if st.session_state.is_light else (50,50,50)
-    fragment_color = (0,200,255)
-    
-    img = Image.new('RGB', (WIDTH, HEIGHT), color=bg_color)
-    draw = ImageDraw.Draw(img)
-    
-    # Draw fragments
-    for idx, (fx, fy) in enumerate(st.session_state.fragment_pos):
-        if idx not in st.session_state.collected:
-            draw.rectangle([fx, fy, fx+FRAGMENT_SIZE, fy+FRAGMENT_SIZE], fill=fragment_color)
-    
-    # Draw player
-    draw.rectangle([st.session_state.player_x, st.session_state.player_y,
-                    st.session_state.player_x+PLAYER_SIZE, st.session_state.player_y+PLAYER_SIZE],
-                   fill=player_color)
-    
-    return img
+    // Draw player
+    ctx.fillStyle = isLight ? 'yellow' : 'gray';
+    ctx.fillRect(player.x, player.y, player.size, player.size);
 
-# --- Streamlit UI ---
-st.title("影子碎片 Prototype (Shadow Fragments)")
+    // Draw collected count
+    ctx.fillStyle = isLight ? 'black' : 'white';
+    ctx.font = '16px Arial';
+    ctx.fillText('Collected: ' + collected.length + '/' + fragments.length, 10, 20);
+}
 
-# Control buttons
-col1, col2, col3 = st.columns([1,2,1])
-with col1:
-    if st.button("↑"):
-        move(0, -20)
-with col2:
-    st.write("Light" if st.session_state.is_light else "Shadow")
-    if st.button("Toggle Light/Shadow"):
-        toggle_light()
-with col3:
-    if st.button("↓"):
-        move(0, 20)
+// Check collisions
+function checkCollision() {
+    for(let i=0;i<fragments.length;i++){
+        if(!collected.includes(i)){
+            if(player.x < fragments[i].x + 20 &&
+               player.x + player.size > fragments[i].x &&
+               player.y < fragments[i].y + 20 &&
+               player.y + player.size > fragments[i].y){
+                collected.push(i);
+            }
+        }
+    }
+}
 
-col4, col5, col6 = st.columns([1,2,1])
-with col4:
-    if st.button("←"):
-        move(-20, 0)
-with col5:
-    st.write(f"Collected: {len(st.session_state.collected)}/{len(st.session_state.fragment_pos)}")
-with col6:
-    if st.button("→"):
-        move(20, 0)
+// Handle key press
+document.addEventListener('keydown', function(event){
+    const speed = 5;
+    if(event.key === 'ArrowUp'){ player.y -= speed; }
+    if(event.key === 'ArrowDown'){ player.y += speed; }
+    if(event.key === 'ArrowLeft'){ player.x -= speed; }
+    if(event.key === 'ArrowRight'){ player.x += speed; }
+    if(event.key === ' '){ isLight = !isLight; }
+    checkCollision();
+});
 
-# Draw game
-game_img = draw_game()
-st.image(game_img)
+// Game loop
+function gameLoop(){
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+"""
+
+# Embed the game in Streamlit
+components.html(game_html, height=450)
+
