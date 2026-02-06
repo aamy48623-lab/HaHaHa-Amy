@@ -75,4 +75,3 @@ gameLoop();
 
 # Embed the game in Streamlit
 components.html(game_html, height=450)
-
