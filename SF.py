@@ -1,87 +1,74 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-st.title("🌀 Gravity Shift｜重力錯亂")
+st.title("🎵 Beat Rift｜節奏裂縫")
 
 html = """
-<canvas id="g" width="500" height="400"></canvas>
+<canvas id="b" width="520" height="400"></canvas>
 <script>
-const c = document.getElementById("g");
+const c = document.getElementById("b");
 const ctx = c.getContext("2d");
 
-let p = {x:240,y:50,s:25,vx:0,vy:0};
-let gravity = "down";
-let speed = 0.5;
-let alive = true;
+let p = {x:240,y:330,s:20};
+let phase = 0;
+let beat = false;
 let score = 0;
 
-let orbs = [{x:200,y:200},{x:400,y:300}];
+let cores = [
+  {x:120,y:200},
+  {x:260,y:160},
+  {x:400,y:220}
+];
 
 document.addEventListener("keydown",e=>{
-  if(e.key==="ArrowLeft") p.vx=-3;
-  if(e.key==="ArrowRight") p.vx=3;
-  if(e.key===" ") toggleGravity();
-});
-document.addEventListener("keyup",()=>p.vx=0);
+  if(e.key==="ArrowLeft") p.x-=10;
+  if(e.key==="ArrowRight") p.x+=10;
 
-function toggleGravity(){
-  gravity = gravity==="down"?"right":
-            gravity==="right"?"up":
-            gravity==="up"?"left":"down";
-}
-
-function update(){
-  if(!alive) return;
-
-  if(gravity==="down") p.vy+=speed;
-  if(gravity==="up") p.vy-=speed;
-  if(gravity==="right") p.vx+=speed;
-  if(gravity==="left") p.vx-=speed;
-
-  p.x+=p.vx;
-  p.y+=p.vy;
-
-  // walls
-  if(p.x<0||p.x>475||p.y<0||p.y>375){
-    alive=false;
-  }
-
-  // orbs
-  orbs = orbs.filter(o=>{
-    if(Math.abs(p.x-o.x)<20 && Math.abs(p.y-o.y)<20){
+  if(e.key===" "){
+    if(beat){
       score++;
-      speed+=0.1;
+    }else{
+      p.x=240; // miss beat → reset
+    }
+  }
+});
+
+function loop(){
+  phase += 0.05;
+  beat = Math.sin(phase) > 0.95;
+
+  // background pulse
+  let pulse = (Math.sin(phase)+1)/2 * 30;
+  ctx.fillStyle = "rgb("+(20+pulse)+",20,40)";
+  ctx.fillRect(0,0,520,400);
+
+  // beat zone
+  ctx.fillStyle = beat ? "lime":"#333";
+  ctx.fillRect(0,300,520,20);
+
+  // cores
+  ctx.fillStyle = "violet";
+  cores = cores.filter(o=>{
+    if(Math.abs(p.x-o.x)<15 && Math.abs(p.y-o.y)<15){
+      score+=2;
       return false;
     }
+    ctx.fillRect(o.x,o.y,12,12);
     return true;
   });
-}
-
-function draw(){
-  ctx.fillStyle="#111";
-  ctx.fillRect(0,0,500,400);
-
-  // orbs
-  ctx.fillStyle="lime";
-  orbs.forEach(o=>ctx.fillRect(o.x,o.y,15,15));
 
   // player
-  ctx.fillStyle=alive?"cyan":"red";
+  ctx.fillStyle = "cyan";
   ctx.fillRect(p.x,p.y,p.s,p.s);
 
   ctx.fillStyle="white";
   ctx.fillText("Score: "+score,10,20);
-  ctx.fillText("Gravity: "+gravity,10,40);
-  if(!alive) ctx.fillText("GAME OVER",200,200);
-}
+  ctx.fillText("SPACE = Beat",10,40);
 
-function loop(){
-  update();
-  draw();
   requestAnimationFrame(loop);
 }
 loop();
 </script>
 """
 
-components.html(html, height=450)
+components.html(html, height=460)
