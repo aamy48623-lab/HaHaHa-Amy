@@ -1,99 +1,73 @@
-import pygame
+import streamlit as st
+import time
 import random
 
-# 初始化
-pygame.init()
+st.set_page_config(page_title="躲避障礙小方塊", layout="centered")
 
-# 視窗設定
-WIDTH, HEIGHT = 600, 800
-win = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("躲避障礙小車遊戲")
+# 遊戲初始化
+if "player_pos" not in st.session_state:
+    st.session_state.player_pos = 2  # 玩家初始位置 (0~4)
+if "obstacles" not in st.session_state:
+    st.session_state.obstacles = []
+if "score" not in st.session_state:
+    st.session_state.score = 0
+if "level" not in st.session_state:
+    st.session_state.level = 1
+if "game_over" not in st.session_state:
+    st.session_state.game_over = False
 
-# 顏色
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-RED = (255, 0, 0)
-BLUE = (0, 0, 255)
+GRID_WIDTH = 5
+GRID_HEIGHT = 10
 
-# 玩家設定
-player_width, player_height = 50, 50
-player_x = WIDTH // 2 - player_width // 2
-player_y = HEIGHT - player_height - 10
-player_speed = 7
+# 玩家控制
+col1, col2, col3 = st.columns([1,1,1])
+with col1:
+    if st.button("←") and not st.session_state.game_over:
+        st.session_state.player_pos = max(0, st.session_state.player_pos - 1)
+with col3:
+    if st.button("→") and not st.session_state.game_over:
+        st.session_state.player_pos = min(GRID_WIDTH-1, st.session_state.player_pos + 1)
 
-# 障礙物設定
-obstacle_width, obstacle_height = 50, 50
-obstacle_speed = 5
-obstacles = []
+# 障礙物生成
+if not st.session_state.game_over:
+    if random.random() < 0.5:  # 每次更新有50%機率生成障礙
+        st.session_state.obstacles.append([random.randint(0, GRID_WIDTH-1), 0])
 
-# 遊戲參數
-clock = pygame.time.Clock()
-score = 0
-level = 1
-font = pygame.font.SysFont(None, 36)
-run = True
+# 障礙物移動
+new_obstacles = []
+for obs in st.session_state.obstacles:
+    obs[1] += 1  # 往下移
+    if obs[1] < GRID_HEIGHT:
+        new_obstacles.append(obs)
+st.session_state.obstacles = new_obstacles
 
-# 遊戲迴圈
-while run:
-    clock.tick(60)  # FPS
-    win.fill(WHITE)
+# 碰撞檢測
+for obs in st.session_state.obstacles:
+    if obs[1] == GRID_HEIGHT-1 and obs[0] == st.session_state.player_pos:
+        st.session_state.game_over = True
 
-    # 事件偵測
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            run = False
+# 顯示網格
+grid = [["⬜" for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
+for obs in st.session_state.obstacles:
+    grid[obs[1]][obs[0]] = "🟥"
+grid[GRID_HEIGHT-1][st.session_state.player_pos] = "🟦"  # 玩家
 
-    # 玩家移動
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_LEFT] and player_x - player_speed > 0:
-        player_x -= player_speed
-    if keys[pygame.K_RIGHT] and player_x + player_width + player_speed < WIDTH:
-        player_x += player_speed
+for row in grid:
+    st.write("".join(row))
 
-    # 障礙物生成
-    if len(obstacles) < level + 2:  # 關卡越高障礙物越多
-        obs_x = random.randint(0, WIDTH - obstacle_width)
-        obs_y = -obstacle_height
-        obstacles.append([obs_x, obs_y])
+# 分數與關卡
+if not st.session_state.game_over:
+    st.session_state.score += 1
+    if st.session_state.score % 20 == 0:  # 每20分升一關
+        st.session_state.level += 1
 
-    # 障礙物移動
-    for obs in obstacles:
-        obs[1] += obstacle_speed
-        pygame.draw.rect(win, RED, (obs[0], obs[1], obstacle_width, obstacle_height))
+st.write(f"分數: {st.session_state.score}  |  關卡: {st.session_state.level}")
 
-    # 玩家畫面
-    pygame.draw.rect(win, BLUE, (player_x, player_y, player_width, player_height))
+# 遊戲結束
+if st.session_state.game_over:
+    st.write("💥 遊戲結束！刷新頁面重新開始。")
 
-    # 碰撞偵測
-    for obs in obstacles:
-        if (player_x < obs[0] + obstacle_width and
-            player_x + player_width > obs[0] and
-            player_y < obs[1] + obstacle_height and
-            player_y + player_height > obs[1]):
-            run = False  # 遊戲結束
-
-    # 移除已掉出畫面的障礙物
-    obstacles = [obs for obs in obstacles if obs[1] < HEIGHT]
-
-    # 分數與關卡
-    score += 1
-    if score % 500 == 0:  # 每500分升一關
-        level += 1
-        obstacle_speed += 1
-
-    # 顯示分數與關卡
-    score_text = font.render(f"Score: {score}", True, BLACK)
-    level_text = font.render(f"Level: {level}", True, BLACK)
-    win.blit(score_text, (10, 10))
-    win.blit(level_text, (10, 40))
-
-    pygame.display.update()
-
-# 遊戲結束畫面
-win.fill(WHITE)
-end_text = font.render(f"遊戲結束! 分數: {score}", True, BLACK)
-win.blit(end_text, (WIDTH//2 - end_text.get_width()//2, HEIGHT//2))
-pygame.display.update()
-pygame.time.delay(3000)
-
-pygame.quit()
+# 自動刷新
+if not st.session_state.game_over:
+    time.sleep(max(0.1, 0.5 - st.session_state.level*0.03))
+    st.experimental_rerun()
