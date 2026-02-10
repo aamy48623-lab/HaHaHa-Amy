@@ -1,74 +1,99 @@
-import streamlit as st
-import streamlit.components.v1 as components
+import pygame
+import random
 
-st.title("🎵 Beat Rift｜節奏裂縫")
+# 初始化
+pygame.init()
 
-html = """
-<canvas id="b" width="520" height="400"></canvas>
-<script>
-const c = document.getElementById("b");
-const ctx = c.getContext("2d");
+# 視窗設定
+WIDTH, HEIGHT = 600, 800
+win = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("躲避障礙小車遊戲")
 
-let p = {x:240,y:330,s:20};
-let phase = 0;
-let beat = false;
-let score = 0;
+# 顏色
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
 
-let cores = [
-  {x:120,y:200},
-  {x:260,y:160},
-  {x:400,y:220}
-];
+# 玩家設定
+player_width, player_height = 50, 50
+player_x = WIDTH // 2 - player_width // 2
+player_y = HEIGHT - player_height - 10
+player_speed = 7
 
-document.addEventListener("keydown",e=>{
-  if(e.key==="ArrowLeft") p.x-=10;
-  if(e.key==="ArrowRight") p.x+=10;
+# 障礙物設定
+obstacle_width, obstacle_height = 50, 50
+obstacle_speed = 5
+obstacles = []
 
-  if(e.key===" "){
-    if(beat){
-      score++;
-    }else{
-      p.x=240; // miss beat → reset
-    }
-  }
-});
+# 遊戲參數
+clock = pygame.time.Clock()
+score = 0
+level = 1
+font = pygame.font.SysFont(None, 36)
+run = True
 
-function loop(){
-  phase += 0.05;
-  beat = Math.sin(phase) > 0.95;
+# 遊戲迴圈
+while run:
+    clock.tick(60)  # FPS
+    win.fill(WHITE)
 
-  // background pulse
-  let pulse = (Math.sin(phase)+1)/2 * 30;
-  ctx.fillStyle = "rgb("+(20+pulse)+",20,40)";
-  ctx.fillRect(0,0,520,400);
+    # 事件偵測
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
 
-  // beat zone
-  ctx.fillStyle = beat ? "lime":"#333";
-  ctx.fillRect(0,300,520,20);
+    # 玩家移動
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_LEFT] and player_x - player_speed > 0:
+        player_x -= player_speed
+    if keys[pygame.K_RIGHT] and player_x + player_width + player_speed < WIDTH:
+        player_x += player_speed
 
-  // cores
-  ctx.fillStyle = "violet";
-  cores = cores.filter(o=>{
-    if(Math.abs(p.x-o.x)<15 && Math.abs(p.y-o.y)<15){
-      score+=2;
-      return false;
-    }
-    ctx.fillRect(o.x,o.y,12,12);
-    return true;
-  });
+    # 障礙物生成
+    if len(obstacles) < level + 2:  # 關卡越高障礙物越多
+        obs_x = random.randint(0, WIDTH - obstacle_width)
+        obs_y = -obstacle_height
+        obstacles.append([obs_x, obs_y])
 
-  // player
-  ctx.fillStyle = "cyan";
-  ctx.fillRect(p.x,p.y,p.s,p.s);
+    # 障礙物移動
+    for obs in obstacles:
+        obs[1] += obstacle_speed
+        pygame.draw.rect(win, RED, (obs[0], obs[1], obstacle_width, obstacle_height))
 
-  ctx.fillStyle="white";
-  ctx.fillText("Score: "+score,10,20);
-  ctx.fillText("SPACE = Beat",10,40);
+    # 玩家畫面
+    pygame.draw.rect(win, BLUE, (player_x, player_y, player_width, player_height))
 
-  requestAnimationFrame(loop);
-}
-loop();
-</script>
-"""
+    # 碰撞偵測
+    for obs in obstacles:
+        if (player_x < obs[0] + obstacle_width and
+            player_x + player_width > obs[0] and
+            player_y < obs[1] + obstacle_height and
+            player_y + player_height > obs[1]):
+            run = False  # 遊戲結束
 
-components.html(html, height=460)
+    # 移除已掉出畫面的障礙物
+    obstacles = [obs for obs in obstacles if obs[1] < HEIGHT]
+
+    # 分數與關卡
+    score += 1
+    if score % 500 == 0:  # 每500分升一關
+        level += 1
+        obstacle_speed += 1
+
+    # 顯示分數與關卡
+    score_text = font.render(f"Score: {score}", True, BLACK)
+    level_text = font.render(f"Level: {level}", True, BLACK)
+    win.blit(score_text, (10, 10))
+    win.blit(level_text, (10, 40))
+
+    pygame.display.update()
+
+# 遊戲結束畫面
+win.fill(WHITE)
+end_text = font.render(f"遊戲結束! 分數: {score}", True, BLACK)
+win.blit(end_text, (WIDTH//2 - end_text.get_width()//2, HEIGHT//2))
+pygame.display.update()
+pygame.time.delay(3000)
+
+pygame.quit()
