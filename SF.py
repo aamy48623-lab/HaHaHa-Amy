@@ -1,73 +1,116 @@
-import streamlit as st
-import time
-import random
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>猜數字進階版</title>
 
-st.set_page_config(page_title="躲避障礙小方塊", layout="centered")
+<style>
+  body {
+    font-family: Arial;
+    background: linear-gradient(to right, #74ebd5, #ACB6E5);
+    text-align: center;
+    padding: 50px;
+  }
 
-# 遊戲初始化
-if "player_pos" not in st.session_state:
-    st.session_state.player_pos = 2  # 玩家初始位置 (0~4)
-if "obstacles" not in st.session_state:
-    st.session_state.obstacles = []
-if "score" not in st.session_state:
-    st.session_state.score = 0
-if "level" not in st.session_state:
-    st.session_state.level = 1
-if "game_over" not in st.session_state:
-    st.session_state.game_over = False
+  .game-box {
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    display: inline-block;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  }
 
-GRID_WIDTH = 5
-GRID_HEIGHT = 10
+  h1 {
+    margin-bottom: 10px;
+  }
 
-# 玩家控制
-col1, col2, col3 = st.columns([1,1,1])
-with col1:
-    if st.button("←") and not st.session_state.game_over:
-        st.session_state.player_pos = max(0, st.session_state.player_pos - 1)
-with col3:
-    if st.button("→") and not st.session_state.game_over:
-        st.session_state.player_pos = min(GRID_WIDTH-1, st.session_state.player_pos + 1)
+  select, input, button {
+    margin: 10px;
+    padding: 10px;
+    font-size: 16px;
+  }
 
-# 障礙物生成
-if not st.session_state.game_over:
-    if random.random() < 0.5:  # 每次更新有50%機率生成障礙
-        st.session_state.obstacles.append([random.randint(0, GRID_WIDTH-1), 0])
+  button {
+    background-color: orange;
+    border: none;
+    cursor: pointer;
+    border-radius: 10px;
+  }
 
-# 障礙物移動
-new_obstacles = []
-for obs in st.session_state.obstacles:
-    obs[1] += 1  # 往下移
-    if obs[1] < GRID_HEIGHT:
-        new_obstacles.append(obs)
-st.session_state.obstacles = new_obstacles
+  #result {
+    font-size: 20px;
+    margin-top: 15px;
+  }
 
-# 碰撞檢測
-for obs in st.session_state.obstacles:
-    if obs[1] == GRID_HEIGHT-1 and obs[0] == st.session_state.player_pos:
-        st.session_state.game_over = True
+  #lives {
+    color: red;
+    font-weight: bold;
+  }
+</style>
+</head>
 
-# 顯示網格
-grid = [["⬜" for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
-for obs in st.session_state.obstacles:
-    grid[obs[1]][obs[0]] = "🟥"
-grid[GRID_HEIGHT-1][st.session_state.player_pos] = "🟦"  # 玩家
+<body>
 
-for row in grid:
-    st.write("".join(row))
+<div class="game-box">
+  <h1>🎮 猜數字升級版</h1>
 
-# 分數與關卡
-if not st.session_state.game_over:
-    st.session_state.score += 1
-    if st.session_state.score % 20 == 0:  # 每20分升一關
-        st.session_state.level += 1
+  <label>選擇難度：</label>
+  <select id="level">
+    <option value="50">簡單 (1~50)</option>
+    <option value="100" selected>普通 (1~100)</option>
+    <option value="500">困難 (1~500)</option>
+  </select>
 
-st.write(f"分數: {st.session_state.score}  |  關卡: {st.session_state.level}")
+  <br>
 
-# 遊戲結束
-if st.session_state.game_over:
-    st.write("💥 遊戲結束！刷新頁面重新開始。")
+  <input type="number" id="guess" placeholder="輸入數字">
+  <br>
 
-# 自動刷新
-if not st.session_state.game_over:
-    time.sleep(max(0.1, 0.5 - st.session_state.level*0.03))
-    st.experimental_rerun()
+  <button onclick="checkGuess()">猜！</button>
+  <button onclick="restartGame()">重新開始</button>
+
+  <p id="result"></p>
+  <p>剩餘次數：<span id="lives">5</span></p>
+</div>
+
+<script>
+  let answer;
+  let lives;
+
+  function startGame() {
+    let max = document.getElementById("level").value;
+    answer = Math.floor(Math.random() * max) + 1;
+    lives = 5;
+    document.getElementById("lives").innerHTML = lives;
+    document.getElementById("result").innerHTML = "";
+  }
+
+  function checkGuess() {
+    let guess = document.getElementById("guess").value;
+    let result = document.getElementById("result");
+
+    if (lives <= 0) return;
+
+    lives--;
+    document.getElementById("lives").innerHTML = lives;
+
+    if (guess == answer) {
+      result.innerHTML = "🎉 猜對了！";
+    } else if (lives == 0) {
+      result.innerHTML = "💀 遊戲結束！答案是 " + answer;
+    } else if (guess > answer) {
+      result.innerHTML = "📉 太大了！";
+    } else {
+      result.innerHTML = "📈 太小了！";
+    }
+  }
+
+  function restartGame() {
+    startGame();
+  }
+
+  startGame();
+</script>
+
+</body>
+</html>
